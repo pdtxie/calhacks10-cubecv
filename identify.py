@@ -1,32 +1,61 @@
 import cv2 
 import numpy as np 
 
-green = [[40, 55, 55], [70, 200, 200], 'green']
-yellow = [[28, 145, 0], [40, 255, 255], 'yellow']
-orange = [[0, 42, 200], [20, 255, 255], 'orange']
+green = [[43, 153, 0], [132, 255, 255], 'green']
 blue = [[100, 143, 145], [118, 255, 255], 'blue']
-white = [[60, 60, 215], [120, 115, 255], 'white']
+
+orange = [[0, 172, 83], [20, 255, 255], 'orange']
 red = [[170, 145, 80], [179, 255, 255], 'red']
-ranges = [green, yellow, orange, blue, white, red]
 
-# Let's load a simple image with 3 black squares 
-img = cv2.imread('test_4.jpg') 
-scale = 10
-img = cv2.resize(img, (img.shape[1] // scale, img.shape[0] // scale))
-cv2.imshow('original', img)
+white = [[60, 60, 215], [120, 115, 255], 'white']
+yellow = [[28, 145, 0], [40, 255, 255], 'yellow']
 
-final_image = np.zeros(img.shape, dtype=np.uint8)
+ranges = [green, blue, orange, red, white, yellow]
 
-for color in ranges:
-    image = img.copy()
-    original = image.copy()
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-    lower = np.array(color[0], dtype="uint8")
-    upper = np.array(color[1], dtype="uint8")
-    mask = cv2.inRange(image, lower, upper)
-    detected = cv2.bitwise_and(original, original, mask=mask)
-    final_image = cv2.bitwise_or(final_image, detected)
-    cv2.imshow(f'color {color[2]}', detected)
+
+USE_CAM = True
+
+if USE_CAM:
+    cap = cv2.VideoCapture(1)
+    waitTime = 330
+else:
+    img = cv2.imread('media/test_1.jpg')
+
+
+while (True):
+    if USE_CAM:
+        ret, img = cap.read()
+
+    scale = 4
+    img = cv2.resize(img, (img.shape[1] // scale, img.shape[0] // scale))
+    cv2.imshow('original', img)
+
+    final_image = np.zeros(img.shape, dtype=np.uint8)
+
+    for color in ranges:
+        image = img.copy()
+        original = image.copy()
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        lower = np.array(color[0], dtype="uint8")
+        upper = np.array(color[1], dtype="uint8")
+        mask = cv2.inRange(image, lower, upper)
+        detected = cv2.bitwise_and(original, original, mask=mask)
+        final_image = cv2.bitwise_or(final_image, detected)
+        # cv2.imshow(f'color {color[2]}', detected)
+
+    cv2.imshow('final image before', final_image)
+
+    cv2.imshow("blur", cv2.GaussianBlur(final_image, (5, 5), 0))
+
+    final_image = cv2.Canny(image=cv2.GaussianBlur(final_image, (5, 5), 0), threshold1=100, threshold2=200)
+
+    cv2.imshow('final image', final_image)
+
+# im2, contours, hierarchy = cv2.findContours(final_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+# convex_hull = cv2.convexHull(final_image)
+    if USE_CAM and cv2.waitKey(waitTime) & 0xFF == ord('q'):
+        break
 
 # Remove noise
 # kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
@@ -38,30 +67,5 @@ for color in ranges:
 
 # cv2.imshow('mask', mask)
 # cv2.imshow('opening', opening)
-cv2.imshow(f'final image', final_image)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
-
-'''
-# Find Canny edges 
-edged = cv2.Canny(image, 30, 200) 
-
-# Finding Contours 
-# Use a copy of the image e.g. edged.copy() 
-# since findContours alters the image 
-contours, hierarchy = cv2.findContours(edged, 
-	cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE) 
-cv2.imshow('Canny Edges After Contouring', edged) 
-cv2.waitKey(0) 
-
-print("Number of Contours found = " + str(len(contours))) 
-
-# Draw all contours 
-# -1 signifies drawing all contours 
-for i in range(len(contours)):
-    im2 = cv2.drawContours(image.copy(), contours, i, (255, 0, 0), 3) 
-    cv2.imshow('Contours', im2)
-    cv2.waitKey(0) 
-
-cv2.destroyAllWindows() 
-'''
