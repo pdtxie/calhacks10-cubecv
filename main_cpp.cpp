@@ -10,13 +10,13 @@ using namespace std;
 bool USE_CAM = false;
 VideoCapture cap;
 
-vector<vector<int>> GREEN = {{43, 153, 0}, {132, 255, 255}};
-vector<vector<int>> BLUE = {{100, 143, 145}, {118, 255, 255}};
-vector<vector<int>> ORANGE = {{0, 172, 83}, {20, 255, 255}};
-vector<vector<int>> RED = {{170, 145, 80}, {179, 255, 255}};
-vector<vector<int>> YELLOW = {{28, 145, 0}, {40, 255, 255}};
+vector<vector<uint8_t>> GREEN = {{43, 153, 0}, {132, 255, 255}};
+vector<vector<uint8_t>> BLUE = {{100, 143, 145}, {118, 255, 255}};
+vector<vector<uint8_t>> ORANGE = {{0, 172, 83}, {20, 255, 255}};
+vector<vector<uint8_t>> RED = {{170, 145, 80}, {179, 255, 255}};
+vector<vector<uint8_t>> YELLOW = {{28, 145, 0}, {40, 255, 255}};
 
-vector<vector<vector<int>> > RANGES = {GREEN, BLUE, ORANGE, RED, YELLOW};
+vector<vector<vector<uint8_t>> > RANGES = {GREEN, BLUE, ORANGE, RED, YELLOW};
 
 Mat get_image() {
     Mat img;
@@ -41,14 +41,16 @@ Mat scale_image(Mat img, int scale = 4) {
 Mat mask_image(Mat img) {
     Mat final_image = Mat::zeros(img.size(), CV_8UC3);
 
-    for (auto& colour : RANGES) {
+    for (auto &colour : RANGES) {
         Mat image = img.clone();
         Mat original = image.clone();
         cvtColor(image, image, COLOR_BGR2HSV);
         Mat lower = Mat(colour[0], true);
         Mat upper = Mat(colour[1], true);
+
         Mat mask;
         inRange(image, lower, upper, mask);
+
         Mat detected;
         bitwise_and(original, original, detected, mask = mask);
         bitwise_or(final_image, detected, final_image);
@@ -57,7 +59,7 @@ Mat mask_image(Mat img) {
     return final_image;
 }
 
-vector<vector<Point>> setup_contours(Mat img, double epsilon = 20.0) {
+vector<vector<Point>> setup_contours(Mat img, double epsilon) {
     Mat cannied;
     Canny(img, cannied, 200, 600);
     vector<vector<Point>> contours0;
@@ -76,14 +78,14 @@ vector<vector<Point>> setup_contours(Mat img, double epsilon = 20.0) {
 
 Mat produce_contours(Mat img, double epsilon = 10.0) {
     vector<vector<Point>> contours = setup_contours(img, epsilon);
-    Mat vis = Mat::zeros(img.size(), CV_8UC3);
+    Mat vis = Mat::zeros(img.size(), CV_8U);
 
     drawContours(vis, contours, -1, Scalar(255, 255, 255), 3, LINE_AA);
     return vis;
 }
 
 void produce_individual_contours(Mat img) {
-    vector<vector<Point>> contours = setup_contours(img);
+    vector<vector<Point>> contours = setup_contours(img, 20.0);
 
     Mat vis = Mat::zeros(img.size(), CV_8UC3);
 
@@ -103,12 +105,12 @@ Mat fill_image(Mat img) {
 
 Mat connect(Mat img) {
     Mat labels, stats, centroids;
-    int nlabels = connectedComponentsWithStats(img, labels, stats, centroids, 8, CV_32S);
-    vector<int> areas(stats.ptr<int>(), stats.ptr<int>() + nlabels);
+    int nlabels = connectedComponentsWithStats(img, labels, stats, centroids);
+
     Mat result = Mat::zeros(labels.size(), CV_8U);
 
-    for (int i = 1; i < nlabels; ++i) {
-        if (areas[i] >= 5000) {
+    for (int i = 1; i < stats.rows; i++) {
+        if (stats.at<int>(i, 4) >= 5000) {
             result.setTo(255, labels == i);
         }
     }
@@ -134,18 +136,62 @@ void detect_lines(Mat img, vector<Vec4f>& best_lines, Mat& with_lines) {
     lsd->drawSegments(with_lines, best_lines);
 }
 
-vector<Point2d> compute_points(vector<Point2d> orig_points) {
-    vector<Point2d> points = orig_points;
-    Point2d a = orig_points[0];
-    Point2d b = orig_points[1];
-    Point2d c = orig_points[2];
-    Point2d d = orig_points[3];
 
-    Point2d e = (c + a - b) + (c - b) * 0.02 + (a - b) * 0.1;
+vector<Point> findPoints(vector<Vec4f> lines, Mat &img) {
+    Vec4f topmost = lines[0];
+    Vec4f leftmost = lines[0];
+
+    for (const Vec4f& line : lines) {
+        int max_x = max(line[0], line[2]);
+        int max_y = max(line[1], line[3]);
+
+        if (max_x < max(topmost[0], topmost[2]))
+            topmost = line;
+
+        if (max_y < max(leftmost[1], leftmost[3]))
+            leftmost = line;
+    }
+
+    if (topmost[0] > topmost[2]) {
+        swap(topmost[0], topmost[2]);
+        swap(topmost[1], topmost[3]);
+    }
+
+    if (leftmost[1] < leftmost[3]) {
+        swap(leftmost[0], leftmost[2]);
+        swap(leftmost[1], leftmost[3]);
+    }
+
+    Point a(topmost[2], topmost[3]); // top right - red
+    Point b(topmost[0], topmost[1]); // top left - blue
+    Point c(leftmost[2], leftmost[3]); // left top - yellow
+    Point d(leftmost[0], leftmost[1]); // left bottom - green
+
+    cout << a << b << c << d << endl;
+
+    circle(img, a, 1, Scalar(0, 0, 255), 2);
+    circle(img, b, 1, Scalar(255, 0, 0), 2);
+    circle(img, c, 1, Scalar(0, 255, 255), 2);
+    circle(img, d, 1, Scalar(0, 255, 0), 2);
+
+    imshow("SDFSDF", img);
+
+    return vector<Point>{d, c, b, a};
+}
+
+
+vector<Point> compute_points(vector<Point> orig_points) {
+    vector<Point> points = orig_points;
+    Point a = orig_points[0];
+    Point b = orig_points[1];
+    Point c = orig_points[2];
+    Point d = orig_points[3];
+
+    Point e = (c + a - b) + (c - b) * 0.02 + (a - b) * 0.1;
     points.push_back(e);
 
-    Point2d dr = c - b;
-    Point2d dc = a - b;
+    Point dr = c - b;
+    Point dc = a - b;
 
     vector<double> coeffs = {1.0 / 6, 0.5, 5.0 / 6};
 
@@ -167,8 +213,8 @@ vector<Point2d> compute_points(vector<Point2d> orig_points) {
     return points;
 }
 
-Mat plot_points(Mat img, const vector<Point2d>& points) {
-    for (const Point2d& pt : points) {
+Mat plot_points(Mat img, const vector<Point>& points) {
+    for (const Point& pt : points) {
         circle(img, pt, 1, Scalar(255, 255, 255), 2);
     }
     return img;
@@ -180,7 +226,7 @@ void produce_image() {
     imshow("original", img);
 
     Mat mask_img = mask_image(img);
-    // imshow("masked", mask_img);
+    // imshow("mask", mask_img);
 
     Mat blurred;
     GaussianBlur(mask_img, blurred, Size(5, 5), 0);
@@ -190,29 +236,26 @@ void produce_image() {
     Mat contours = produce_contours(img);
     // imshow("contours", contours);
 
-    // produce_individual_contours(img);
-
     Mat connected_comps = connect(filled);
-    // imshow("connected", connected_comps);
+    imshow("connected", connected_comps);
 
     Mat again;
     GaussianBlur(connected_comps, again, Size(3, 3), 0);
     again = produce_contours(again, 20.0);
-    // imshow("contours second", again);
 
-    Mat combined = again | connected_comps;
-    // cout << combined << endl;
+    
+    Mat combined;
+    bitwise_or(again, connected_comps, combined);
+    imshow("combined", combined);
 
     vector<Vec4f> best_lines;
     Mat with_lines;
     GaussianBlur(combined, with_lines, Size(77, 77), 0);
     detect_lines(with_lines, best_lines, with_lines);
-    // detect_lines(combined, best_lines, with_lines);
-    // detect_lines(again, best_lines, with_lines);
-    // imshow("with lines", with_lines);
+
+    vector<Point> points = findPoints(best_lines, with_lines);
 
     Mat two_lines = with_lines;
-    vector<Point2d> points;
     Mat image_with_points = plot_points(mask_img, compute_points(points));
     imshow("points image", image_with_points);
 }

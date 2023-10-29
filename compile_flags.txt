@@ -1,0 +1,2 @@
+-I/opt/homebrew/Cellar/opencv/4.8.1_1/include/opencv4/
+-std=c++17

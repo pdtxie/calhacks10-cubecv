@@ -88,6 +88,10 @@ def connect(img):
     nlabels, labels, stats, centroids = cv2.connectedComponentsWithStats(img, None, None, None, 8, cv2.CV_32S)
     areas = stats[1:, cv2.CC_STAT_AREA]
 
+    print(stats)
+
+    print(stats[1:, cv2.CC_STAT_AREA])
+
     result = np.zeros((labels.shape), np.uint8)
 
     for i in range(nlabels - 1):
@@ -105,11 +109,11 @@ def detect_lines(img):
     lsd = cv2.createLineSegmentDetector(0)
     lines = lsd.detect(img)[0]
 
-    
     sorted_lines = sorted(lines, key=lambda x: distance(x[0][0], x[0][1], x[0][2], x[0][3]), reverse=True)
     best_lines = np.array(sorted_lines[:5])
 
     return best_lines, lsd.drawSegments(img, best_lines)
+
 
 def find_points(lines, img):
     lines = list(map(lambda x: x[0], lines))
@@ -119,14 +123,16 @@ def find_points(lines, img):
 
     if topmost[0] > topmost[2]:
         topmost = np.concatenate((topmost[2:], topmost[:2]))
-    
+
     if leftmost[1] < leftmost[3]:
         leftmost = np.concatenate((leftmost[2:], leftmost[:2]))
-    
+
     a = tuple(map(int, (topmost[2], topmost[3]))) # top right - red
     b = tuple(map(int, (topmost[0], topmost[1]))) # top left - blue
     c = tuple(map(int, (leftmost[2], leftmost[3]))) # left top - yellow
     d = tuple(map(int, (leftmost[0], leftmost[1]))) # left bottom - green
+
+    print(a, b, c, d)
 
     img = cv2.circle(img, a, 1, (0, 0, 255), 2)
     img = cv2.circle(img, b, 1, (255, 0, 0), 2)
@@ -134,6 +140,7 @@ def find_points(lines, img):
     img = cv2.circle(img, d, 1, (0, 255, 0), 2)
     
     return img, [topmost[2:], topmost[:2], leftmost[2:], leftmost[:2]]
+
 
 def compute_points(orig_points):
     a, b, c, d = orig_points
@@ -153,6 +160,7 @@ def compute_points(orig_points):
             ret.append(c + dr * m1 + dc * m2)
 
     return ret
+
 
 def plot_points(img, points):
     for pt in points:
@@ -179,10 +187,10 @@ def produce_image():
     # produce_individual_contours(img)
 
     connected_comps = connect(filled)
-    # cv2.imshow("connected", connected_comps)
+    cv2.imshow("connected", connected_comps)
 
     again = produce_contours(cv2.GaussianBlur(connected_comps, (3, 3), 0), epsilon=20)
-    # cv2.imshow("contours second", again)
+    cv2.imshow("contours second", again)
 
     combined = cv2.bitwise_or(again, connected_comps)
     print(combined)
