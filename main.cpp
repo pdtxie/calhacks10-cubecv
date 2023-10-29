@@ -1,34 +1,34 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <cmath>
+#include <optional>
 #include <vector>
 #include <iostream>
 
 using namespace cv;
 using namespace std;
 
-bool USE_CAM = false;
-VideoCapture cap;
+bool USE_CAM = true;
+VideoCapture cap(1);
 
-vector<vector<uint8_t>> GREEN = {{43, 153, 0}, {132, 255, 255}};
-vector<vector<uint8_t>> BLUE = {{100, 143, 145}, {118, 255, 255}};
-vector<vector<uint8_t>> ORANGE = {{0, 172, 83}, {20, 255, 255}};
-vector<vector<uint8_t>> RED = {{170, 145, 80}, {179, 255, 255}};
-vector<vector<uint8_t>> YELLOW = {{28, 145, 0}, {40, 255, 255}};
+enum Colour {
+    BLUE, GREEN, ORANGE, RED, YELLOW
+};
 
-vector<vector<vector<uint8_t>> > RANGES = {GREEN, BLUE, ORANGE, RED, YELLOW};
+
+map<Colour, vector<vector<int>>> RANGES;
+vector<vector<Colour>> piece_colours;
+
 
 Mat get_image() {
     Mat img;
+
     if (USE_CAM) {
-        if (!cap.isOpened()) {
-            cerr << "Camera not initialized." << endl;
-            return img;
-        }
         cap >> img;
     } else {
         img = imread("media/test_4.jpg");
     }
+
     return img;
 }
 
@@ -41,12 +41,12 @@ Mat scale_image(Mat img, int scale = 4) {
 Mat mask_image(Mat img) {
     Mat final_image = Mat::zeros(img.size(), CV_8UC3);
 
-    for (auto &colour : RANGES) {
+    for (auto it = RANGES.begin(); it != RANGES.end(); it++) {
         Mat image = img.clone();
         Mat original = image.clone();
         cvtColor(image, image, COLOR_BGR2HSV);
-        Mat lower = Mat(colour[0], true);
-        Mat upper = Mat(colour[1], true);
+        Mat lower = Mat((*it).second[0], true);
+        Mat upper = Mat((*it).second[1], true);
 
         Mat mask;
         inRange(image, lower, upper, mask);
@@ -132,12 +132,14 @@ void detect_lines(Mat img, vector<Vec4f>& best_lines, Mat& with_lines) {
     });
 
     best_lines.assign(lines.begin(), lines.begin() + min(5, static_cast<int>(lines.size())));
-    with_lines = Mat::zeros(img.size(), CV_8UC3);
-    lsd->drawSegments(with_lines, best_lines);
+    // with_lines = Mat::zeros(img.size(), CV_8UC3);
+    
+    if (best_lines.size() > 0)
+        lsd->drawSegments(with_lines, best_lines);
 }
 
 
-vector<Point> findPoints(vector<Vec4f> lines, Mat &img) {
+vector<Point> find_points(vector<Vec4f> lines, Mat &img) {
     Vec4f topmost = lines[0];
     Vec4f leftmost = lines[0];
 
@@ -167,12 +169,10 @@ vector<Point> findPoints(vector<Vec4f> lines, Mat &img) {
     Point c(leftmost[2], leftmost[3]); // left top - yellow
     Point d(leftmost[0], leftmost[1]); // left bottom - green
 
-    cout << a << b << c << d << endl;
-
-    circle(img, a, 1, Scalar(0, 0, 255), 2);
-    circle(img, b, 1, Scalar(255, 0, 0), 2);
-    circle(img, c, 1, Scalar(0, 255, 255), 2);
-    circle(img, d, 1, Scalar(0, 255, 0), 2);
+    // circle(img, a, 1, Scalar(0, 0, 255), 2);
+    // circle(img, b, 1, Scalar(255, 0, 0), 2);
+    // circle(img, c, 1, Scalar(0, 255, 255), 2);
+    // circle(img, d, 1, Scalar(0, 255, 0), 2);
 
     imshow("SDFSDF", img);
 
@@ -181,14 +181,16 @@ vector<Point> findPoints(vector<Vec4f> lines, Mat &img) {
 
 
 vector<Point> compute_points(vector<Point> orig_points) {
-    vector<Point> points = orig_points;
+    // vector<Point> points = orig_points;
+    vector<Point> points;
+
     Point a = orig_points[0];
     Point b = orig_points[1];
     Point c = orig_points[2];
     Point d = orig_points[3];
 
     Point e = (c + a - b) + (c - b) * 0.02 + (a - b) * 0.1;
-    points.push_back(e);
+    // points.push_back(e);
 
     Point dr = c - b;
     Point dc = a - b;
@@ -217,8 +219,29 @@ Mat plot_points(Mat img, const vector<Point>& points) {
     for (const Point& pt : points) {
         circle(img, pt, 1, Scalar(255, 255, 255), 2);
     }
+
     return img;
 }
+
+
+optional<Colour> get_colour(Vec3b c) {
+    auto it = RANGES.begin();
+
+    while (it != RANGES.end()) {
+        vector<vector<int>> value_range = (*it).second;
+        
+        if (c[2] == 0) return nullopt;
+
+        if (value_range[0][0] <= c[0] && value_range[1][0] >= c[0]) {
+            return make_optional((*it).first);
+        }
+
+        it++;
+    }
+
+    return nullopt;  // WARN: should never happen
+}
+
 
 void produce_image() {
     Mat img = get_image();
@@ -226,7 +249,7 @@ void produce_image() {
     imshow("original", img);
 
     Mat mask_img = mask_image(img);
-    // imshow("mask", mask_img);
+    imshow("mask", mask_img);
 
     Mat blurred;
     GaussianBlur(mask_img, blurred, Size(5, 5), 0);
@@ -237,7 +260,7 @@ void produce_image() {
     // imshow("contours", contours);
 
     Mat connected_comps = connect(filled);
-    imshow("connected", connected_comps);
+    // imshow("connected", connected_comps);
 
     Mat again;
     GaussianBlur(connected_comps, again, Size(3, 3), 0);
@@ -246,27 +269,65 @@ void produce_image() {
     
     Mat combined;
     bitwise_or(again, connected_comps, combined);
-    imshow("combined", combined);
+    // imshow("combined", combined);
 
     vector<Vec4f> best_lines;
     Mat with_lines;
     GaussianBlur(combined, with_lines, Size(77, 77), 0);
     detect_lines(with_lines, best_lines, with_lines);
 
-    vector<Point> points = findPoints(best_lines, with_lines);
+    if (best_lines.size() <= 2) return;
+
+    vector<Point> points = find_points(best_lines, with_lines);
 
     Mat two_lines = with_lines;
-    Mat image_with_points = plot_points(mask_img, compute_points(points));
+    auto piece_points = compute_points(points);
+
+    Mat image_with_points = plot_points(mask_img.clone(), piece_points);
     imshow("points image", image_with_points);
+
+
+
+    Mat hsb_final;
+    cvtColor(mask_img, hsb_final, COLOR_BGR2HSV);
+
+
+    for (int i = 0; i < piece_points.size(); i++) {
+        Vec3b hsv = hsb_final.at<Vec3b>(piece_points[i].y, piece_points[i].x);
+
+        /* optional<Colour> centre;
+
+        if (i % 9 == 0)
+            centre = get_colour(hsb_final.at<Vec3b>(piece_points[i + 4].y, piece_points[i + 4].x));
+
+        if (centre) {
+            optional<Colour> piece_colour = get_colour(hsb_final.at<Vec3b>(piece_points[i].y, piece_points[i].x));
+            if (piece_colour)
+                piece_colours[centre.value()][i % 9] = piece_colour.value();
+        } */
+
+
+        auto x = get_colour(hsb_final.at<Vec3b>(piece_points[i].y, piece_points[i].x));
+        if (x) {
+            cout << x.value() << endl;
+        } else {
+            cout << "NO VALUE" << endl;
+        }
+    }
 }
 
+
+
+
 int main(int argc, char** argv) {
+    RANGES[BLUE] = {{100, 143, 145}, {118, 255, 255}};
+    RANGES[GREEN] = {{43, 153, 0}, {132, 255, 255}};
+    RANGES[ORANGE] = {{0, 172, 83}, {20, 255, 255}};
+    RANGES[RED] = {{170, 145, 80}, {179, 255, 255}};
+    RANGES[YELLOW] = {{28, 145, 0}, {40, 255, 255}};
+
     if (USE_CAM) {
-        cap.open(0);
-        if (!cap.isOpened()) {
-            cerr << "Camera not initialized." << endl;
-            return -1;
-        }
+        cap.open(1);
     }
 
     int waitTime = 330;

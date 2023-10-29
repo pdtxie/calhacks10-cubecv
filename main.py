@@ -4,7 +4,7 @@ import numpy as np
 import sys
 
 
-USE_CAM = False
+USE_CAM = True
 cap = None
 
 GREEN = [[43, 153, 0], [132, 255, 255]]
@@ -19,7 +19,7 @@ RANGES = [GREEN, BLUE, ORANGE, RED, YELLOW]
 
 
 if USE_CAM:
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(1)
     waitTime = 330
 
 
@@ -193,19 +193,19 @@ def produce_image():
     cv2.imshow("contours second", again)
 
     combined = cv2.bitwise_or(again, connected_comps)
-    print(combined)
+    cv2.imshow("combined", combined)
 
-    best_lines, with_lines = detect_lines(cv2.GaussianBlur(combined, (77, 77), 0))
+    # best_lines, with_lines = detect_lines(cv2.GaussianBlur(combined, (77, 77), 0))
     # best_lines, with_lines = detect_lines(combined)
     # best_lines, with_lines = detect_lines(again)
     # cv2.imshow("with lines", with_lines)
 
-    two_lines, points = find_points(best_lines, with_lines)
-    cv2.imshow("two lines", two_lines)
+    # two_lines, points = find_points(best_lines, with_lines)
+    # cv2.imshow("two lines", two_lines)
 
-    all_points = compute_points(points)
-    points_img = plot_points(mask_img, all_points)
-    cv2.imshow("points image", points_img)
+    # all_points = compute_points(points)
+    # points_img = plot_points(mask_img, all_points)
+    # cv2.imshow("points image", points_img)
 
 
 if USE_CAM:
