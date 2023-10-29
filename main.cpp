@@ -18,6 +18,7 @@ enum Colour {
 
 map<Colour, vector<vector<int>>> RANGES;
 vector<vector<Colour>> piece_colours;
+vector<vector<vector<int>>> faces(6, vector<vector<int>>(3, vector<int>(3, 5)));
 
 
 Mat get_image() {
@@ -242,6 +243,15 @@ optional<Colour> get_colour(Vec3b c) {
     return nullopt;  // WARN: should never happen
 }
 
+void rotate_n(vector<vector<int>> &face, int n) {
+    for (int i = 0; i < n; i++) {
+        swap(face[0][0], face[2][2]);
+        swap(face[0][1], face[1][2]);
+        swap(face[1][0], face[2][1]);
+        swap(face[0], face[2]);
+    }
+}
+
 
 void produce_image() {
     Mat img = get_image();
@@ -291,31 +301,57 @@ void produce_image() {
     Mat hsb_final;
     cvtColor(mask_img, hsb_final, COLOR_BGR2HSV);
 
+    int color_top = 5, color_bottom = 5;
+    vector<vector<int>> bottom_face = vector<vector<int>>(3, vector<int>(3, 5));
 
     for (int i = 0; i < piece_points.size(); i++) {
         Vec3b hsv = hsb_final.at<Vec3b>(piece_points[i].y, piece_points[i].x);
 
-        /* optional<Colour> centre;
-
-        if (i % 9 == 0)
-            centre = get_colour(hsb_final.at<Vec3b>(piece_points[i + 4].y, piece_points[i + 4].x));
-
-        if (centre) {
-            optional<Colour> piece_colour = get_colour(hsb_final.at<Vec3b>(piece_points[i].y, piece_points[i].x));
-            if (piece_colour)
-                piece_colours[centre.value()][i % 9] = piece_colour.value();
-        } */
-
 
         auto x = get_colour(hsb_final.at<Vec3b>(piece_points[i].y, piece_points[i].x));
+
         if (x) {
             cout << x.value() << endl;
         } else {
             cout << "NO VALUE" << endl;
+            continue;
+        }
+
+        if (i >= 9) {
+            bottom_face[i / 3 - 3][i % 3] = x.value();
+        }
+
+        if (i == 4) {
+            color_top = x.value();
+        }
+        else if (i == 13) {
+            color_bottom = x.value();
+        }
+    }
+
+    int code = color_top * 10 + color_bottom;
+
+    if (code % 11 == 0 || code == 10 || code == 1 || code == 23 || code == 32 || code == 45 || code == 54) {
+        return;
+    }
+
+    if (code == 35 || code == 34 || code == 31 || code == 3 || code == 20 || code == 12) {
+        rotate_n(bottom_face, 1);
+    }
+    else if (code == 15 || code/10 == 4 || code == 4) {
+        rotate_n(bottom_face, 2);
+    }
+    else if (code == 25 || code == 24 || code == 13 || code == 30 || code == 2 || code == 21) {
+        rotate_n(bottom_face, 3);
+    }
+
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            if (i == 1 && j == 1) continue;
+            faces[color_bottom][i][j] = bottom_face[i][j];
         }
     }
 }
-
 
 
 
@@ -325,6 +361,8 @@ int main(int argc, char** argv) {
     RANGES[ORANGE] = {{0, 172, 83}, {20, 255, 255}};
     RANGES[RED] = {{170, 145, 80}, {179, 255, 255}};
     RANGES[YELLOW] = {{28, 145, 0}, {40, 255, 255}};
+
+    
 
     if (USE_CAM) {
         cap.open(1);
