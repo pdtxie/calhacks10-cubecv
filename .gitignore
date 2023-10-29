@@ -1,2 +1,4 @@
 *.MOV
 .DS_Store
+
+__pycache__
