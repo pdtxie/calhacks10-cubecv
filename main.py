@@ -43,12 +43,12 @@ def scale_image(img, scale=4):
 def mask_image(img):
     final_image = np.zeros(img.shape, dtype=np.uint8)
 
-    for color in RANGES:
+    for colour in RANGES:
         image = img.copy()
         original = image.copy()
         image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-        lower = np.array(color[0], dtype="uint8")
-        upper = np.array(color[1], dtype="uint8")
+        lower = np.array(colour[0], dtype="uint8")
+        upper = np.array(colour[1], dtype="uint8")
         mask = cv2.inRange(image, lower, upper)
         detected = cv2.bitwise_and(original, original, mask=mask)
         final_image = cv2.bitwise_or(final_image, detected)
