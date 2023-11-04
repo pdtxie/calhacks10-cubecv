@@ -170,20 +170,20 @@ vector<Point> find_points(vector<Vec4f> lines, Mat &img) {
     Point c(leftmost[2], leftmost[3]); // left top - yellow
     Point d(leftmost[0], leftmost[1]); // left bottom - green
 
-    // circle(img, a, 1, Scalar(0, 0, 255), 2);
-    // circle(img, b, 1, Scalar(255, 0, 0), 2);
-    // circle(img, c, 1, Scalar(0, 255, 255), 2);
-    // circle(img, d, 1, Scalar(0, 255, 0), 2);
+    circle(img, a, 1, Scalar(0, 0, 255), 2);
+    circle(img, b, 1, Scalar(255, 0, 0), 2);
+    circle(img, c, 1, Scalar(0, 255, 255), 2);
+    circle(img, d, 1, Scalar(0, 255, 0), 2);
 
-    imshow("SDFSDF", img);
+    imshow("additional", img);
 
     return vector<Point>{d, c, b, a};
 }
 
 
 vector<Point> compute_points(vector<Point> orig_points) {
-    // vector<Point> points = orig_points;
-    vector<Point> points;
+    vector<Point> points = orig_points;
+    // vector<Point> points;
 
     Point a = orig_points[0];
     Point b = orig_points[1];
@@ -191,7 +191,7 @@ vector<Point> compute_points(vector<Point> orig_points) {
     Point d = orig_points[3];
 
     Point e = (c + a - b) + (c - b) * 0.02 + (a - b) * 0.1;
-    // points.push_back(e);
+    points.push_back(e);
 
     Point dr = c - b;
     Point dc = a - b;
@@ -264,13 +264,13 @@ void produce_image() {
     Mat blurred;
     GaussianBlur(mask_img, blurred, Size(5, 5), 0);
     Mat filled = fill_image(blurred);
-    // imshow("filled", filled);
+    imshow("filled", filled);
 
     Mat contours = produce_contours(img);
-    // imshow("contours", contours);
+    imshow("contours", contours);
 
     Mat connected_comps = connect(filled);
-    // imshow("connected", connected_comps);
+    imshow("connected", connected_comps);
 
     Mat again;
     GaussianBlur(connected_comps, again, Size(3, 3), 0);
@@ -279,7 +279,7 @@ void produce_image() {
     
     Mat combined;
     bitwise_or(again, connected_comps, combined);
-    // imshow("combined", combined);
+    imshow("combined", combined);
 
     vector<Vec4f> best_lines;
     Mat with_lines;

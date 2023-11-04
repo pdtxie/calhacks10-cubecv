@@ -1,1 +1,0 @@
-clang++ main.cpp -I/opt/homebrew/Cellar/opencv/4.8.1_1/include/opencv4/ -std=c++17 -L/opt/homebrew/Cellar/opencv/4.8.1_1/lib -lopencv_core -lopencv_imgcodecs -lopencv_imgproc -lopencv_highgui -lopencv_videoio

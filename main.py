@@ -112,7 +112,7 @@ def detect_lines(img):
     sorted_lines = sorted(lines, key=lambda x: distance(x[0][0], x[0][1], x[0][2], x[0][3]), reverse=True)
     best_lines = np.array(sorted_lines[:5])
 
-    return best_lines, lsd.drawSegments(img, best_lines)
+    return best_lines, lsd.drawSegments(img, best_lines) if len(best_lines) > 0 else []
 
 
 def find_points(lines, img):
@@ -175,14 +175,14 @@ def produce_image():
     cv2.imshow("original", img)
 
     mask_img = mask_image(img)
-    # cv2.imshow("masked", mask_img)
+    cv2.imshow("masked", mask_img)
 
     blurred = cv2.GaussianBlur(mask_img, (5, 5), 0)
     filled = fill_image(blurred)
-    # cv2.imshow("filled", filled)
+    cv2.imshow("filled", filled)
 
     contours = produce_contours(img)
-    # cv2.imshow("contours", contours)
+    cv2.imshow("contours", contours)
 
     # produce_individual_contours(img)
 
@@ -195,17 +195,15 @@ def produce_image():
     combined = cv2.bitwise_or(again, connected_comps)
     cv2.imshow("combined", combined)
 
-    # best_lines, with_lines = detect_lines(cv2.GaussianBlur(combined, (77, 77), 0))
-    # best_lines, with_lines = detect_lines(combined)
-    # best_lines, with_lines = detect_lines(again)
-    # cv2.imshow("with lines", with_lines)
+    best_lines, with_lines = detect_lines(cv2.GaussianBlur(combined, (77, 77), 0))
+    cv2.imshow("with lines", with_lines)
 
-    # two_lines, points = find_points(best_lines, with_lines)
-    # cv2.imshow("two lines", two_lines)
+    two_lines, points = find_points(best_lines, with_lines)
+    cv2.imshow("two lines", two_lines)
 
-    # all_points = compute_points(points)
-    # points_img = plot_points(mask_img, all_points)
-    # cv2.imshow("points image", points_img)
+    all_points = compute_points(points)
+    points_img = plot_points(mask_img, all_points)
+    cv2.imshow("points image", points_img)
 
 
 if USE_CAM:
